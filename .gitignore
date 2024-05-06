@@ -2,3 +2,4 @@
 delivery_app/__pycache__/
 delivery_app/restaurant/__pycache__/
 instance
+venv
