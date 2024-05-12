@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:latest
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: exampledb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    restart: always
+
+  app:
+    build: ./delivery_app/restaurant
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: postgresql://user:password@postgres/exampledb
+    depends_on:
+      - postgres
+    restart: always
+
+volumes:
+  postgres_data:

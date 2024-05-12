@@ -2,8 +2,8 @@ from flask import request, jsonify, Blueprint
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt
 
 from . import db
-from delivery_app.restaurant.models import Restaurant, Menu, MenuItem
-from delivery_app.restaurant.utils import admin_required
+from .models import Restaurant, Menu, MenuItem
+from .utils import admin_required
 
 restaurant_bp = Blueprint('restaurant', __name__)
 
