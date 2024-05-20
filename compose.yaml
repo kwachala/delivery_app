@@ -75,6 +75,8 @@ services:
       - kong-db
       - kong-migration
     restart: always
+    volumes:
+      - ./:/keys
 
   konga:
     image: pantsel/konga:latest

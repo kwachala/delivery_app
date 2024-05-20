@@ -28,18 +28,23 @@ curl -i -X POST \
   --data 'service.name=restaurant_api'
 
 curl -i -X POST \
-  --url http://localhost:8001/consumers/ \
+  --url http://kong:8001/consumers/ \
   --data "username=postman_client"
 
 curl -i -X POST \
-  --url http://localhost:8001/consumers/postman_client/jwt \
+  --url http://kong:8001/consumers/postman_client/jwt \
   --data "algorithm=RS256" \
-  --data "key=private_key" \
-  --data "rsa_public_key=./public_key.pem"
+  --data "key=my_key" \
+  --data "rsa_public_key=/keys/public_key.pem"
 
 curl -i -X POST \
-  --url http://localhost:8001/services/restaurant_api/plugins \
-  --data "name=jwt"
+  --url http://kong:8001/services/restaurant_api/plugins \
+  --data "name=jwt" \
+  --data "config.claims_to_verify=exp" \
+  --data "config.secret_is_base64=false" \
+  --data "config.key_claim_name=iss" \
+  --data "config.uri_param_names=jwt" \
+  --data "config.anonymous=false"
 
 #  curl -i -X POST \
 #  --url http://localhost:8001/services/order_api/plugins \
