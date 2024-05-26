@@ -20,3 +20,10 @@ class MenuItem(db.Model):
     menu_id = db.Column(db.Integer, db.ForeignKey('menu.id'), nullable=False)
     name = db.Column(db.String(80), nullable=False)
     price = db.Column(db.Float, nullable=False)
+
+class AwaitingOrder(db.Model):
+    __tablename__ = 'awaitingorder'  # Jawne określenie nazwy tabeli
+    id = db.Column(db.Integer, primary_key=True)
+    menu_id = db.Column(db.Integer, db.ForeignKey('menu.id'), nullable=False)
+    name = db.Column(db.String(80), nullable=False)
+    price = db.Column(db.Float, nullable=False)

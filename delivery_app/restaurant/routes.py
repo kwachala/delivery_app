@@ -1,11 +1,15 @@
+import json
+
 from flask import request, jsonify, Blueprint
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt
+from .tasks import send_order_to_queue
 
 from . import db
 from .models import Restaurant, Menu, MenuItem
 from .utils import admin_required
 
 restaurant_bp = Blueprint('restaurant', __name__)
+
 
 # temporary
 @restaurant_bp.route('/login', methods=['POST'])
@@ -24,7 +28,6 @@ def login():
 
 
 @restaurant_bp.route('/restaurants', methods=['GET', 'POST'])
-@jwt_required()
 def handle_restaurants():
     if request.method == 'POST':
         claims = get_jwt()
@@ -51,8 +54,6 @@ def handle_restaurants():
 
 
 @restaurant_bp.route('/restaurants/<int:restaurant_id>', methods=['GET', 'PUT', 'DELETE'])
-@jwt_required()
-@admin_required
 def handle_restaurant(restaurant_id):
     restaurant = Restaurant.query.get_or_404(restaurant_id)
 
@@ -77,7 +78,6 @@ def handle_restaurant(restaurant_id):
 
 
 @restaurant_bp.route('/menu/<int:menu_id>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-@jwt_required()
 def handle_menu(menu_id):
     claims = get_jwt()
     menu = Menu.query.get_or_404(menu_id)
@@ -123,8 +123,25 @@ def handle_menu(menu_id):
     return jsonify({'message': 'Invalid request'}), 400
 
 
-# if __name__ == '__main__':
-#     with restaurant_app.app_context():
-#         db.create_all()
-#
-#     restaurant_app.run(debug=True)
+@restaurant_bp.route('/order/accept/order_id', methods=['POST'])
+def accept_order():
+    order_id = request.form.get("order_id")
+    order_content = request.form.get("order_content")
+
+    # Tworzenie danych zamówienia w formacie JSON
+    order_data = {
+        "order_id": order_id,
+        "order_content": order_content
+    }
+
+    # Wysyłanie danych zamówienia do kolejki za pomocą Celery
+    send_order_to_queue.delay(json.dumps(order_data))
+
+    # Zwracanie odpowiedzi
+    return jsonify({'status': 'accepted', 'order': order_data}), 202
+
+
+@restaurant_bp.route('/order/reject', methods=['POST'])
+def reject_order():
+    order_data = request.get_json()
+    return jsonify({'status': 'rejected', 'order': order_data}), 200
