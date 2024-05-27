@@ -1,4 +1,5 @@
 import json
+import random
 
 from flask import request, jsonify, Blueprint
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt
@@ -125,17 +126,20 @@ def handle_menu(menu_id):
 
 @restaurant_bp.route('/order/accept/order_id', methods=['POST'])
 def accept_order():
-    order_id = request.form.get("order_id")
-    order_content = request.form.get("order_content")
 
     # Tworzenie danych zamówienia w formacie JSON
     order_data = {
-        "order_id": order_id,
-        "order_content": order_content
+        "order_id": random.randint(1,10000),
+        "customer_id": 456,
+        "items": [
+            {"product_id": 1, "quantity": 2},
+            {"product_id": 2, "quantity": 1}
+        ],
+        "total_price": 99.99
     }
 
     # Wysyłanie danych zamówienia do kolejki za pomocą Celery
-    send_order_to_queue.delay(json.dumps(order_data))
+    send_order_to_queue.delay((order_data))
 
     # Zwracanie odpowiedzi
     return jsonify({'status': 'accepted', 'order': order_data}), 202

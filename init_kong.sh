@@ -20,7 +20,7 @@ echo 'Kong is up and running. Executing configuration script...';
 curl -i -X POST \
 --url http://kong:8001/services/ \
 --data 'name=restaurant_api' \
---data 'url=http://app:5000/restaurant_api'
+--data 'url=http://restaurant-app:5000/restaurant_api'
 
 curl -i -X POST \
   --url http://kong:8001/services/restaurant_api/routes \

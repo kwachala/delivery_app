@@ -1,26 +1,48 @@
 version: '3.8'
 
 services:
-  postgres:
+  postgres-restaurant:
     image: postgres:latest
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres-restaurant-data:/var/lib/postgresql/data-restaurant
     environment:
-      POSTGRES_DB: exampledb
+      POSTGRES_DB: restaurantdb
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
     restart: always
 
-  app:
+  restaurant-app:
     build: ./delivery_app/restaurant
     ports:
       - "5000:5000"
     environment:
-      DATABASE_URL: postgresql://user:password@postgres/exampledb
+      DATABASE_URL: postgresql://user:password@postgres-restaurant/restaurantdb
     depends_on:
-      - postgres
+      - postgres-restaurant
+    restart: always
+
+  postgres-deliveries:
+    image: postgres:latest
+    volumes:
+      - postgres-deliveries-data:/var/lib/postgresql/data-deliveries
+    environment:
+      POSTGRES_DB: deliveriesdb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5434:5432"
+    restart: always
+
+  deliveries-app:
+    build: ./delivery_app/deliveries
+    ports:
+      - "5001:5001"
+    environment:
+      DATABASE_URL: postgresql://user:password@postgres-deliveries/deliveriesdb
+    depends_on:
+      - postgres-deliveries
     restart: always
 
   rabbitmq:
@@ -98,11 +120,12 @@ services:
       - kong
     volumes:
       - ./init_kong.sh:/docker-entrypoint-initdb.d/init_kong.sh
-    entrypoint: ["/bin/sh", "/docker-entrypoint-initdb.d/init_kong.sh"]
+    entrypoint: [ "/bin/sh", "/docker-entrypoint-initdb.d/init_kong.sh" ]
     environment:
       PGPASSWORD: kong
 
 volumes:
-  postgres_data:
+  postgres-restaurant-data:
+  postgres-deliveries-data:
   rabbitmq_data:
   kong_data:
