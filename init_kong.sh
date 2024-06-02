@@ -26,6 +26,15 @@ curl -i -X POST \
   --url http://kong:8001/services/restaurant_api/routes \
   --data 'paths[]=/restaurant_api' \
 
+curl -i -X POST \
+--url http://kong:8001/services/ \
+--data 'name=deliveries_api' \
+--data 'url=http://deliveries-app:5001/deliveries_api'
+
+curl -i -X POST \
+  --url http://kong:8001/services/deliveries_api/routes \
+  --data 'paths[]=/deliveries_api' \
+
 echo
 echo 'Configuration completed.';
 

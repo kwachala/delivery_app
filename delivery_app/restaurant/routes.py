@@ -1,9 +1,9 @@
 import json
 import random
+from kombu import Connection, Exchange, Queue
 
 from flask import request, jsonify, Blueprint
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt
-from .tasks import send_order_to_queue
 
 from . import db
 from .models import Restaurant, Menu, MenuItem
@@ -11,6 +11,10 @@ from .utils import admin_required
 
 restaurant_bp = Blueprint('restaurant', __name__)
 
+broker_url = 'pyamqp://guest:guest@rabbitmq:5672//'
+connection = Connection(broker_url)
+orders_exchange = Exchange('orders', type='direct')
+orders_queue = Queue('orders_queue', exchange=orders_exchange, routing_key='orders')
 
 # temporary
 @restaurant_bp.route('/login', methods=['POST'])
@@ -31,8 +35,8 @@ def login():
 @restaurant_bp.route('/restaurants', methods=['GET', 'POST'])
 def handle_restaurants():
     if request.method == 'POST':
-        claims = get_jwt()
-        if 'role' not in claims or claims['role'] != 'admin':
+        role = request.form.get('role')
+        if role != 'admin':
             return jsonify({'message': 'Administrative privileges required'}), 403
 
         name = request.form.get('name')
@@ -130,17 +134,24 @@ def accept_order():
     # Tworzenie danych zamówienia w formacie JSON
     order_data = {
         "order_id": random.randint(1,10000),
-        "customer_id": 456,
+        "restaurant_id": 456,
+        "username": "krzychu123",
         "items": [
             {"product_id": 1, "quantity": 2},
             {"product_id": 2, "quantity": 1}
         ],
-        "total_price": 99.99
+        "total_price": 99.99,
+        "status": 'being_prepared'
+
     }
 
-    # Wysyłanie danych zamówienia do kolejki za pomocą Celery
-    send_order_to_queue.delay((order_data))
-
+    with connection.Producer() as producer:
+        producer.publish(
+            json.dumps(order_data),
+            exchange=orders_exchange,
+            routing_key='orders',
+            declare=[orders_queue]
+        )
     # Zwracanie odpowiedzi
     return jsonify({'status': 'accepted', 'order': order_data}), 202
 

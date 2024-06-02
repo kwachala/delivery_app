@@ -4,11 +4,12 @@ from . import db
 
 class Delivery(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    restaurant_id = db.Column(db.Integer, nullable=False)
-    username = db.Column(db.String(100), nullable=False)
-    items = db.relationship("OrderItem", backref="order", lazy=True)
-    total_price = db.Column(db.Float, nullable=False)
-    deliverer_id = db.Column(db.Integer, nullable=False)
+    restaurant_id = db.Column(db.String(200), nullable=False)
+    username = db.Column(db.String(200), nullable=False)
+    items = db.Column(db.String(200), nullable=False)
+    total_price = db.Column(db.String(200), nullable=False)
+    status = db.Column(db.String(200), nullable=False)
+    deliverer_id = db.Column(db.String(50), nullable=False)
 
 class Restaurant(db.Model):
     id = db.Column(db.Integer, primary_key=True)

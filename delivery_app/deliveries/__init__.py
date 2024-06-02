@@ -1,5 +1,6 @@
+import json
 import os
-
+import requests
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
@@ -7,16 +8,7 @@ from celery import Celery
 import logging
 import threading
 
-
-def make_celery(app):
-    celery = Celery(
-        app.import_name,
-        backend=app.config['CELERY_RESULT_BACKEND'],
-        broker=app.config['CELERY_BROKER_URL']
-    )
-    celery.conf.update(app.config)
-    return celery
-
+app = Celery('tasks', broker='pyamqp://guest:guest@rabbitmq:5672//')
 
 deliveries_app = Flask(__name__)
 deliveries_app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
@@ -26,12 +18,10 @@ deliveries_app.config.update(
     CELERY_RESULT_BACKEND='rpc://'
 )
 
-celery = make_celery(deliveries_app)
-
 db = SQLAlchemy(deliveries_app)
 jwt = JWTManager(deliveries_app)
 
-from .models import Restaurant, Menu, MenuItem
+from .models import Restaurant, Menu, MenuItem, Delivery
 from .routes import deliveries_bp
 
 with deliveries_app.app_context():
@@ -39,19 +29,19 @@ with deliveries_app.app_context():
 
 from kombu import Connection, Exchange, Queue
 
-__all__ = ['celery']
 
-
-@celery.task(queue='order_queue')
+@app.task
 def process_order(order_data):
-    print(f"Processing order: {order_data}")
-    # Tu dodaj logikę przetwarzania zamówienia
+    logging.info(f"Processing order: {order_data}")
+    headers = {'Content-Type': 'application/json'}
+
+    requests.post('http://127.0.0.1:5001/deliveries_api/add_delivery', data=json.dumps(order_data), headers=headers)
 
 
 def consume_orders():
     global x
     exchange = Exchange('orders', type='direct')
-    queue = Queue('order_queue', exchange, routing_key='order')
+    queue = Queue('orders_queue', exchange, routing_key='orders')
 
     with Connection('pyamqp://guest:guest@rabbitmq:5672//') as conn:
         with conn.Consumer(queue, callbacks=[process_order_callback]) as consumer:
@@ -59,20 +49,16 @@ def consume_orders():
                 try:
                     conn.drain_events()
                 except Exception as e:
-                    continue  # Kontynuuj przetwarzanie kolejnych wiadomości
+                    continue
 
 
 def process_order_callback(body, message):
-    try:
-        # Spróbuj przetworzyć wiadomość
-        process_order.delay(body)
-        message.ack()
-    except (TypeError, ValueError, Exception) as e:
-        message.reject()  # Odrzuć wiadomość, jeśli wystąpił błąd
+    process_order(json.loads(body))
+    message.ack()
 
 
 deliveries_app.register_blueprint(deliveries_bp, url_prefix='/deliveries_api')
 
 thread = threading.Thread(target=consume_orders)
-thread.daemon = True  # wątek zakończy się po zamknięciu aplikacji
+thread.daemon = True
 thread.start()
