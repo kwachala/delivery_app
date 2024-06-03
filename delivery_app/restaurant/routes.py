@@ -7,21 +7,6 @@ from .utils import admin_required
 
 restaurant_bp = Blueprint('restaurant', __name__)
 
-# temporary
-@restaurant_bp.route('/login', methods=['POST'])
-def login():
-    username = request.form.get('username', None)
-    password = request.form.get('password', None)
-    role = request.form.get('role', None)
-    try:
-        restaurant_id = request.form.get('restaurant_id', None)
-    except:
-        restaurant_id = None
-
-    access_token = create_access_token(identity=username,
-                                       additional_claims={'role': role, 'restaurant_id': restaurant_id})
-    return jsonify(access_token=access_token)
-
 
 @restaurant_bp.route('/restaurants', methods=['GET', 'POST'])
 @jwt_required()

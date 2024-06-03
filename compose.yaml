@@ -1,32 +1,67 @@
 version: '3.8'
 
 services:
-  postgres:
+  postgres-restaurant:
     image: postgres:latest
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_restaurant_data:/var/lib/postgresql/data-restaurant
     environment:
-      POSTGRES_DB: exampledb
+      POSTGRES_DB: restaurantdb
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
     restart: always
+    networks:
+      - app_network
 
-  app:
+  postgres-user:
+    image: postgres:latest
+    volumes:
+      - postgres_user_data:/var/lib/postgresql/data-user
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    restart: always
+    networks:
+      - app_network
+
+  restaurant-app:
     build: ./delivery_app/restaurant
     ports:
       - "5000:5000"
     environment:
-      - DATABASE_URL=postgresql://user:password@postgres/exampledb
-      - JWT_PRIVATE_KEY_PATH=/app/private_key.pem
-      - JWT_PUBLIC_KEY_PATH=/app/public_key.pem
-    volumes:
-      - ./private_key.pem:/app/private_key.pem
-      - ./public_key.pem:/app/public_key.pem
+      - DATABASE_URL=postgresql://user:password@postgres-restaurant:5432/restaurantdb
+      - JWT_KEY=${JWT_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
     depends_on:
-      - postgres
+      - postgres-restaurant
+      - kong
     restart: always
+    networks:
+      - app_network
+
+  user-app:
+    build: ./delivery_app/user
+    ports:
+      - "5001:5001"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres-user:5432/userdb
+      - JWT_KEY=${JWT_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
+    depends_on:
+      - postgres-user
+      - kong
+    restart: always
+    networks:
+      - app_network
 
   rabbitmq:
     image: "rabbitmq:3-management"
@@ -39,6 +74,8 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: "guest"
       RABBITMQ_DEFAULT_PASS: "guest"
+    networks:
+      - app_network
 
   kong-db:
     image: postgres:latest
@@ -49,8 +86,10 @@ services:
     volumes:
       - kong_data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "5434:5432"
     restart: always
+    networks:
+      - app_network
 
   kong:
     tty: true
@@ -75,8 +114,8 @@ services:
       - kong-db
       - kong-migration
     restart: always
-    volumes:
-      - ./:/keys
+    networks:
+      - app_network
 
   konga:
     image: pantsel/konga:latest
@@ -87,6 +126,8 @@ services:
     restart: always
     depends_on:
       - kong
+    networks:
+      - app_network
 
   kong-migration:
     image: kong:latest
@@ -98,6 +139,8 @@ services:
       KONG_PG_PORT: 5432
     depends_on:
       - kong-db
+    networks:
+      - app_network
 
   kong-init:
     image: postgres:alpine
@@ -108,8 +151,18 @@ services:
     entrypoint: ["/bin/sh", "/docker-entrypoint-initdb.d/init_kong.sh"]
     environment:
       PGPASSWORD: kong
+      JWT_KEY: ${JWT_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - app_network
 
 volumes:
-  postgres_data:
+  postgres_restaurant_data:
+  postgres_user_data:
   rabbitmq_data:
   kong_data:
+
+networks:
+  app_network:
+    name: app_network
+    driver: bridge
