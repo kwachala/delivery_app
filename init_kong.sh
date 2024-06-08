@@ -59,4 +59,33 @@ curl -i -X POST \
   --data "config.uri_param_names=jwt" \
   --data "config.anonymous=false"
 
+curl -i -X POST \
+--url http://kong:8001/services/ \
+--data 'name=deliveries_api' \
+--data 'url=http://deliveries-app:5001/deliveries_api'
+
+curl -i -X POST \
+  --url http://kong:8001/services/deliveries_api/routes \
+  --data 'paths[]=/deliveries_api' \
+
+echo
 echo 'Configuration completed.';
+
+## Configure Kong services, routes, plugins, and consumers
+#curl -i -X POST http://kong:8000/services/ \
+#  --data "name=restaurant-service" \
+#  --data "url=http://app:5000";
+#
+#curl -i -X POST http://kong:8000/services/restaurant-service/routes \
+#  --data "paths[]=/restaurant_api/restaurant";
+#
+#curl -i -X POST http://kong:8000/services/restaurant-service/plugins \
+#  --data "name=key-auth";
+#
+#curl -i -X POST http://kong:8000/consumers/ \
+#  --data "username=admin";
+#
+#curl -i -X POST http://kong:8000/consumers/admin/key-auth/ \
+#  --data "key=admin-key";
+#
+#echo 'Configuration script completed.';

@@ -4,7 +4,7 @@ services:
   postgres-restaurant:
     image: postgres:latest
     volumes:
-      - postgres_restaurant_data:/var/lib/postgresql/data-restaurant
+      - postgres-restaurant-data:/var/lib/postgresql/data-restaurant
     environment:
       POSTGRES_DB: restaurantdb
       POSTGRES_USER: user
@@ -42,6 +42,29 @@ services:
     depends_on:
       - postgres-restaurant
       - kong
+      - postgres-restaurant
+    restart: always
+
+  postgres-deliveries:
+    image: postgres:latest
+    volumes:
+      - postgres-deliveries-data:/var/lib/postgresql/data-deliveries
+    environment:
+      POSTGRES_DB: deliveriesdb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5434:5432"
+    restart: always
+
+  deliveries-app:
+    build: ./delivery_app/deliveries
+    ports:
+      - "5001:5001"
+    environment:
+      DATABASE_URL: postgresql://user:password@postgres-deliveries/deliveriesdb
+    depends_on:
+      - postgres-deliveries
     restart: always
     networks:
       - app_network
@@ -159,6 +182,8 @@ services:
 volumes:
   postgres_restaurant_data:
   postgres_user_data:
+  postgres-restaurant-data:
+  postgres-deliveries-data:
   rabbitmq_data:
   kong_data:
 

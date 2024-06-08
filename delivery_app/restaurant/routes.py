@@ -1,3 +1,7 @@
+import json
+import random
+from kombu import Connection, Exchange, Queue
+
 from flask import request, jsonify, Blueprint
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt
 
@@ -6,6 +10,26 @@ from .models import Restaurant, Menu, MenuItem
 from .utils import admin_required
 
 restaurant_bp = Blueprint('restaurant', __name__)
+
+broker_url = 'pyamqp://guest:guest@rabbitmq:5672//'
+connection = Connection(broker_url)
+orders_exchange = Exchange('orders', type='direct')
+orders_queue = Queue('orders_queue', exchange=orders_exchange, routing_key='orders')
+
+# temporary
+@restaurant_bp.route('/login', methods=['POST'])
+def login():
+    username = request.form.get('username', None)
+    password = request.form.get('password', None)
+    role = request.form.get('role', None)
+    try:
+        restaurant_id = request.form.get('restaurant_id', None)
+    except:
+        restaurant_id = None
+
+    access_token = create_access_token(identity=username,
+                                       additional_claims={'role': role, 'restaurant_id': restaurant_id})
+    return jsonify(access_token=access_token)
 
 
 @restaurant_bp.route('/restaurants', methods=['GET', 'POST'])
@@ -110,8 +134,35 @@ def handle_menu(menu_id):
     return jsonify({'message': 'Invalid request'}), 400
 
 
-# if __name__ == '__main__':
-#     with restaurant_app.app_context():
-#         db.create_all()
-#
-#     restaurant_app.run(debug=True)
+@restaurant_bp.route('/order/accept/order_id', methods=['POST'])
+def accept_order():
+
+    # Tworzenie danych zamówienia w formacie JSON
+    order_data = {
+        "order_id": random.randint(1,10000),
+        "restaurant_id": 456,
+        "username": "krzychu123",
+        "items": [
+            {"product_id": 1, "quantity": 2},
+            {"product_id": 2, "quantity": 1}
+        ],
+        "total_price": 99.99,
+        "status": 'being_prepared'
+
+    }
+
+    with connection.Producer() as producer:
+        producer.publish(
+            json.dumps(order_data),
+            exchange=orders_exchange,
+            routing_key='orders',
+            declare=[orders_queue]
+        )
+    # Zwracanie odpowiedzi
+    return jsonify({'status': 'accepted', 'order': order_data}), 202
+
+
+@restaurant_bp.route('/order/reject', methods=['POST'])
+def reject_order():
+    order_data = request.get_json()
+    return jsonify({'status': 'rejected', 'order': order_data}), 200
