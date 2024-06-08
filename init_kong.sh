@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # Install curl
-#apk --no-cache add curl
-apk update && apk add --no-cache curl
+apk --no-cache add curl
+#apk update && apk add --no-cache curl
 
 #docker-compose up -d kong-db kong kong-migration
 

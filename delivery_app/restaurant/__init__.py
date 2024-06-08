@@ -4,9 +4,6 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 
-from .models import Restaurant, Menu, MenuItem
-from .routes import restaurant_bp
-
 restaurant_app = Flask(__name__)
 restaurant_app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 restaurant_app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET")
@@ -15,6 +12,9 @@ restaurant_app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET")
 
 db = SQLAlchemy(restaurant_app)
 jwt = JWTManager(restaurant_app)
+
+from .models import Restaurant, Menu, MenuItem
+from .routes import restaurant_bp
 
 with restaurant_app.app_context():
     db.create_all()

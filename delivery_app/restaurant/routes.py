@@ -13,7 +13,8 @@ restaurant_bp = Blueprint('restaurant', __name__)
 def handle_restaurants():
     if request.method == 'POST':
         claims = get_jwt()
-        if 'role' not in claims or claims['role'] != 'admin':
+
+        if 'role' not in claims or claims['role'] != 'ADMIN':
             return jsonify({'message': 'Administrative privileges required'}), 403
 
         name = request.form.get('name')
@@ -32,6 +33,7 @@ def handle_restaurants():
         return jsonify({'message': 'Restaurant created successfully'}), 201
 
     restaurants = Restaurant.query.all()
+
     return jsonify([{'id': r.id, 'name': r.name, 'address': r.address} for r in restaurants])
 
 
