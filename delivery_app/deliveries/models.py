@@ -2,14 +2,19 @@ from flask_sqlalchemy import SQLAlchemy
 from . import db
 
 
+class Delivery(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    restaurant_id = db.Column(db.String(200), nullable=False)
+    username = db.Column(db.String(200), nullable=False)
+    items = db.Column(db.String(200), nullable=False)
+    total_price = db.Column(db.String(200), nullable=False)
+    status = db.Column(db.String(200), nullable=False)
+    deliverer_id = db.Column(db.String(50), nullable=False)
+
 class Restaurant(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     address = db.Column(db.String(120), nullable=False)
-    cuisine = db.Column(db.String(60), nullable=False)
-    status = db.Column(db.String(20), nullable=False, default='pending')  # active, inactive, pending
-    owner_id = db.Column(db.Integer, nullable=False)
-    menu = db.relationship('Menu', backref='restaurant', lazy=True, uselist=False)
 
 
 class Menu(db.Model):
@@ -20,13 +25,6 @@ class Menu(db.Model):
 
 class MenuItem(db.Model):
     __tablename__ = 'menuitem'  # Jawne określenie nazwy tabeli
-    id = db.Column(db.Integer, primary_key=True)
-    menu_id = db.Column(db.Integer, db.ForeignKey('menu.id'), nullable=False)
-    name = db.Column(db.String(80), nullable=False)
-    price = db.Column(db.Float, nullable=False)
-
-class AwaitingOrder(db.Model):
-    __tablename__ = 'awaitingorder'  # Jawne określenie nazwy tabeli
     id = db.Column(db.Integer, primary_key=True)
     menu_id = db.Column(db.Integer, db.ForeignKey('menu.id'), nullable=False)
     name = db.Column(db.String(80), nullable=False)
