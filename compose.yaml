@@ -13,7 +13,29 @@ services:
       - "5432:5432"
     restart: always
 
-  app:
+  postgres_2:
+    image: postgres:latest
+    volumes:
+      - postgres_data_2:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: exampledb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5434:5432"
+    restart: always
+
+  app_order:
+    build: ./delivery_app/order
+    ports:
+      - "5001:5001"
+    environment:
+      DATABASE_URL: postgresql://user:password@postgres/exampledb
+    depends_on:
+      - postgres_2
+    restart: always
+
+  app_restaurant:
     build: ./delivery_app/restaurant
     ports:
       - "5000:5000"
@@ -98,11 +120,12 @@ services:
       - kong
     volumes:
       - ./init_kong.sh:/docker-entrypoint-initdb.d/init_kong.sh
-    entrypoint: ["/bin/sh", "/docker-entrypoint-initdb.d/init_kong.sh"]
+    entrypoint: [ "/bin/sh", "/docker-entrypoint-initdb.d/init_kong.sh" ]
     environment:
       PGPASSWORD: kong
 
 volumes:
   postgres_data:
+  postgres_data_2:
   rabbitmq_data:
   kong_data:

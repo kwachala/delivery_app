@@ -6,8 +6,9 @@ from flask_jwt_extended import (
 )
 
 from . import db
-from delivery_app.order.models import Order, OrderItem
-from delivery_app.restaurant.utils import admin_required
+from .models import Order, OrderItem
+from .utils import admin_required, serialize_order_item
+import json
 
 order_bp = Blueprint("order", __name__)
 
@@ -68,3 +69,40 @@ def handle_order(order_id):
         db.session.delete(order)
         db.session.commit()
         return jsonify({"message": "Order deleted successfully"})
+
+
+# WIP
+@order_bp.route("/add_item/<int:order_id>", methods=["GET"])
+def add_item(order_id):
+    order = Order.query.get_or_404(order_id)
+
+    item_name = request.form.get("item_name")
+    item_price = request.form.get("item_price")
+
+    new_order_item = OrderItem(order_id=order.id, name=item_name, price=item_price)
+
+    order.items.append(new_order_item)
+
+    db.session.add(new_order_item)
+    db.session.commit()
+
+
+@order_bp.route("/send_order_for_accept/<int:order_id>", methods=["GET"])
+# @jwt_required()
+# @admin_required
+def send_order_for_accept(order_id):
+    from .tasks import send_order_to_queue
+
+    order = Order.query.get_or_404(order_id)
+
+    order_data = {
+        "id": order.id,
+        "restaurant_id": order.restaurant_id,
+        "username": order.username,
+        "total_price": order.total_price,
+        "items": [serialize_order_item(item) for item in order.items],
+    }
+
+    send_order_to_queue.delay(json.dump(order_data))
+
+    return jsonify({"status": "send_for_accept", "order": order_data}), 202
