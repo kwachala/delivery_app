@@ -16,10 +16,6 @@ def register():
     username = request.form.get('username', None)
     password = request.form.get('password', None)
     role = request.form.get('role', None)
-    # try:
-    #     restaurant_id = request.form.get('restaurant_id', None)
-    # except:
-    #     restaurant_id = None
 
     if not username or not password or not role:
         return jsonify({'message': 'Missing required parameters'}), 400
@@ -36,6 +32,7 @@ def register():
 
     payload = {
         'iss': key,
+        'user_id': user.id,
         'role': user.role.value,
         'sub': username,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
@@ -49,43 +46,24 @@ def register():
 def login():
     username = request.form.get('username', None)
     password = request.form.get('password', None)
-    # role = request.form.get('role', None)
-    # try:
-    #     restaurant_id = request.form.get('restaurant_id', None)
-    # except:
-    #     restaurant_id = None
 
     if not username or not password:
         return jsonify({'message': 'Missing required parameters'}), 400
 
     user = User.query.filter_by(username=username).first()
 
-    key = os.getenv("JWT_KEY")
-    secret = os.getenv("JWT_SECRET")
-
-    # if not isinstance(secret, str):
-    #     return jsonify({'message': 'JWT secret is not a string', 'key': key, 'secret': secret}), 500
-
-    # if not key or not secret:
-    #     return jsonify({'message': 'JWT key or secret not set'}), 500
-
-    # Stara wersja
-    # access_token = create_access_token(identity=username,
-    #                                    additional_claims={'role': role, 'restaurant_id': restaurant_id})
-    # Nowa wersja
-
     if user and user.check_password(password):
+        key = os.getenv("JWT_KEY")
+        secret = os.getenv("JWT_SECRET")
         payload = {
             'iss': key,
+            'user_id': user.id,
             'role': user.role.value,
             'sub': username,
-            # 'restaurant_id': restaurant_id,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
         }
         access_token = jwt.encode(payload, secret, algorithm='HS256')
-        # access_token = create_access_token(identity={'username': user.username, 'role': user.role.name},
-        #                                    expires_delta=timedelta(hours=1))
-        # return jsonify(access_token=access_token)
+
         return jsonify({'message': 'Login successful', 'access_token': access_token}), 200
     else:
         return jsonify({'message': 'Invalid username or password'}), 401
@@ -95,9 +73,3 @@ def login():
 def handle_users():
     users = User.query.all()
     return jsonify([{'id': u.id, 'username': u.username, 'password': u._password, 'role': u.role.value} for u in users])
-
-# if __name__ == '__main__':
-#     with restaurant_app.app_context():
-#         db.create_all()
-#
-#     restaurant_app.run(debug=True)

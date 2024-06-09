@@ -6,6 +6,10 @@ class Restaurant(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     address = db.Column(db.String(120), nullable=False)
+    cuisine = db.Column(db.String(60), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')  # active, inactive, pending
+    owner_id = db.Column(db.Integer, nullable=False)
+    menu = db.relationship('Menu', backref='restaurant', lazy=True, uselist=False)
 
 
 class Menu(db.Model):

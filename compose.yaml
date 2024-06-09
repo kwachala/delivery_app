@@ -18,13 +18,27 @@ services:
   postgres-user:
     image: postgres:latest
     volumes:
-      - postgres_user_data:/var/lib/postgresql/data-user
+      - postgres-user-data:/var/lib/postgresql/data-user
     environment:
       POSTGRES_DB: userdb
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
     ports:
       - "5433:5432"
+    restart: always
+    networks:
+      - app_network
+
+  postgres-deliveries:
+    image: postgres:latest
+    volumes:
+      - postgres-deliveries-data:/var/lib/postgresql/data-deliveries
+    environment:
+      POSTGRES_DB: deliveriesdb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5434:5432"
     restart: always
     networks:
       - app_network
@@ -42,29 +56,6 @@ services:
     depends_on:
       - postgres-restaurant
       - kong
-      - postgres-restaurant
-    restart: always
-
-  postgres-deliveries:
-    image: postgres:latest
-    volumes:
-      - postgres-deliveries-data:/var/lib/postgresql/data-deliveries
-    environment:
-      POSTGRES_DB: deliveriesdb
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5434:5432"
-    restart: always
-
-  deliveries-app:
-    build: ./delivery_app/deliveries
-    ports:
-      - "5001:5001"
-    environment:
-      DATABASE_URL: postgresql://user:password@postgres-deliveries/deliveriesdb
-    depends_on:
-      - postgres-deliveries
     restart: always
     networks:
       - app_network
@@ -82,6 +73,18 @@ services:
     depends_on:
       - postgres-user
       - kong
+    restart: always
+    networks:
+      - app_network
+
+  deliveries-app:
+    build: ./delivery_app/deliveries
+    ports:
+      - "5002:5002"
+    environment:
+      DATABASE_URL: postgresql://user:password@postgres-deliveries:5432/deliveriesdb
+    depends_on:
+      - postgres-deliveries
     restart: always
     networks:
       - app_network
@@ -109,7 +112,7 @@ services:
     volumes:
       - kong_data:/var/lib/postgresql/data
     ports:
-      - "5434:5432"
+      - "5435:5432"
     restart: always
     networks:
       - app_network
@@ -180,9 +183,8 @@ services:
       - app_network
 
 volumes:
-  postgres_restaurant_data:
-  postgres_user_data:
   postgres-restaurant-data:
+  postgres-user-data:
   postgres-deliveries-data:
   rabbitmq_data:
   kong_data:
