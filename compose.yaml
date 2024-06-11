@@ -43,6 +43,20 @@ services:
     networks:
       - app_network
 
+  postgres-order:
+    image: postgres:latest
+    volumes:
+      - postgres-order-data:/var/lib/postgresql/data-order
+    environment:
+      POSTGRES_DB: orderdb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5436:5432"
+    restart: always
+    networks:
+      - app_network
+
   restaurant-app:
     build: ./delivery_app/restaurant
     ports:
@@ -85,6 +99,23 @@ services:
       DATABASE_URL: postgresql://user:password@postgres-deliveries:5432/deliveriesdb
     depends_on:
       - postgres-deliveries
+    restart: always
+    networks:
+      - app_network
+
+  order-app:
+    build: ./delivery_app/order
+    ports:
+      - "5003:5003"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres-order:5432/orderdb
+      - JWT_KEY=${JWT_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
+    depends_on:
+      - postgres-order
+      - kong
     restart: always
     networks:
       - app_network
@@ -186,6 +217,7 @@ volumes:
   postgres-restaurant-data:
   postgres-user-data:
   postgres-deliveries-data:
+  postgres-order-data:
   rabbitmq_data:
   kong_data:
 

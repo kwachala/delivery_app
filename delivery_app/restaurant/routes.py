@@ -7,146 +7,207 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt
 
 from . import db
 from .models import Restaurant, Menu, MenuItem
-from .utils import admin_required
+from .utils import (
+    admin_required,
+    restauration_or_admin_required,
+    serialize_restaurant_menu,
+)
 
-restaurant_bp = Blueprint('restaurant', __name__)
+restaurant_bp = Blueprint("restaurant", __name__)
 
-broker_url = 'pyamqp://guest:guest@rabbitmq:5672//'
+broker_url = "pyamqp://guest:guest@rabbitmq:5672//"
 connection = Connection(broker_url)
-orders_exchange = Exchange('orders', type='direct')
-orders_queue = Queue('orders_queue', exchange=orders_exchange, routing_key='orders')
+orders_exchange = Exchange("orders", type="direct")
+orders_queue = Queue("orders_queue", exchange=orders_exchange, routing_key="orders")
 
 
-@restaurant_bp.route('/restaurant/register', methods=['POST'])
+@restaurant_bp.route("/restaurant/register", methods=["POST"])
 @jwt_required()
 def register_restaurant():
     claims = get_jwt()
 
-    owner_id = claims['user_id']
+    owner_id = claims["user_id"]
 
-    name = request.form.get('name', None)
-    address = request.form.get('address', None)
-    cuisine = request.form.get('cuisine', None)
+    name = request.form.get("name", None)
+    address = request.form.get("address", None)
+    cuisine = request.form.get("cuisine", None)
 
-    if claims['role'] == 'CUSTOMER' or claims['role'] == 'DELIVERER':
-        return jsonify({'message': 'Insufficient permission'}), 403
+    if claims["role"] == "CUSTOMER" or claims["role"] == "DELIVERER":
+        return jsonify({"message": "Insufficient permission"}), 403
 
     if not name or not address or not cuisine:
-        return jsonify({'message': 'Missing required parameters'}), 400
+        return jsonify({"message": "Missing required parameters"}), 400
 
     if Restaurant.query.filter_by(name=name).first():
-        return jsonify({'message': 'Restaurant with given name already exists'}), 400
+        return jsonify({"message": "Restaurant with given name already exists"}), 400
 
-    restaurant = Restaurant(name=name, address=address, cuisine=cuisine, status='pending', owner_id=owner_id)
+    restaurant = Restaurant(
+        name=name, address=address, cuisine=cuisine, status="pending", owner_id=owner_id
+    )
     db.session.add(restaurant)
     db.session.commit()
 
-    return jsonify({'message': 'Restaurant registration submitted. Awaiting approval.'}), 201
+    db.session.flush()
+
+    menu = Menu(restaurant_id=restaurant.id)
+    db.session.add(menu)
+    db.session.commit()
+
+    return (
+        jsonify({"message": "Restaurant registration submitted. Awaiting approval."}),
+        201,
+    )
 
 
-@restaurant_bp.route('/restaurant/approve/<int:restaurant_id>', methods=['POST'])
+@restaurant_bp.route("/restaurant/approve/<int:restaurant_id>", methods=["POST"])
 @jwt_required()
 def approve_restaurant(restaurant_id):
     claims = get_jwt()
 
-    if not claims or claims['role'] != 'ADMIN':
-        return jsonify({'message': 'Administrative privileges required'}), 403
+    if not claims or claims["role"] != "ADMIN":
+        return jsonify({"message": "Administrative privileges required"}), 403
 
     restaurant = Restaurant.query.get(restaurant_id)
     if not restaurant:
-        return jsonify({'message': 'Restaurant not found'}), 404
+        return jsonify({"message": "Restaurant not found"}), 404
 
-    restaurant.status = 'active'
+    restaurant.status = "active"
     db.session.commit()
 
-    return jsonify({'message': 'Restaurant approved'}), 200
+    return jsonify({"message": "Restaurant approved"}), 200
 
 
-@restaurant_bp.route('/restaurant/reject/<int:restaurant_id>', methods=['POST'])
+@restaurant_bp.route("/restaurant/reject/<int:restaurant_id>", methods=["POST"])
 @jwt_required()
 def reject_restaurant(restaurant_id):
     claims = get_jwt()
 
-    if not claims or claims['role'] != 'ADMIN':
-        return jsonify({'message': 'Administrative privileges required'}), 403
+    if not claims or claims["role"] != "ADMIN":
+        return jsonify({"message": "Administrative privileges required"}), 403
 
     restaurant = Restaurant.query.get(restaurant_id)
     if not restaurant:
-        return jsonify({'message': 'Restaurant not found'}), 404
+        return jsonify({"message": "Restaurant not found"}), 404
 
-    restaurant.status = 'inactive'
+    restaurant.status = "inactive"
     db.session.commit()
 
-    return jsonify({'message': 'Restaurant rejected'}), 200
+    return jsonify({"message": "Restaurant rejected"}), 200
 
 
-@restaurant_bp.route('/restaurant/status/<int:restaurant_id>', methods=['GET'])
+@restaurant_bp.route("/restaurant/status/<int:restaurant_id>", methods=["GET"])
 @jwt_required()
 def restaurant_status(restaurant_id):
     restaurant = Restaurant.query.get(restaurant_id)
     claims = get_jwt()
-    if not claims or (claims['role'] != 'ADMIN' and claims['user_id'] != restaurant.owner_id):
-        return jsonify({'message': 'Only the owner or an admin can perform this action'}), 403
+    if not claims or (
+        claims["role"] != "ADMIN" and claims["user_id"] != restaurant.owner_id
+    ):
+        return (
+            jsonify({"message": "Only the owner or an admin can perform this action"}),
+            403,
+        )
 
     if not restaurant:
-        return jsonify({'message': 'Restaurant not found'}), 404
+        return jsonify({"message": "Restaurant not found"}), 404
 
-    return jsonify({'id': restaurant.id, 'status': restaurant.status}), 200
+    return jsonify({"id": restaurant.id, "status": restaurant.status}), 200
 
 
-@restaurant_bp.route('/restaurants/pending', methods=['GET'])
+@restaurant_bp.route("/restaurants/pending", methods=["GET"])
 @jwt_required()
 def pending_restaurants():
     claims = get_jwt()
 
-    if not claims or claims['role'] != 'ADMIN':
-        return jsonify({'message': 'Administrative privileges required'}), 403
+    if not claims or claims["role"] != "ADMIN":
+        return jsonify({"message": "Administrative privileges required"}), 403
 
-    restaurants = Restaurant.query.filter_by(status='pending').all()
-    return jsonify([{'id': r.id, 'name': r.name, 'address': r.address, 'cuisine': r.cuisine, 'status': r.status,
-                     'owner_id': r.owner_id} for r in restaurants])
+    restaurants = Restaurant.query.filter_by(status="pending").all()
+    return jsonify(
+        [
+            {
+                "id": r.id,
+                "name": r.name,
+                "address": r.address,
+                "cuisine": r.cuisine,
+                "status": r.status,
+                "owner_id": r.owner_id,
+            }
+            for r in restaurants
+        ]
+    )
 
 
-@restaurant_bp.route('/restaurants', methods=['GET'])
+@restaurant_bp.route("/restaurants", methods=["GET"])
 @jwt_required()
 def handle_restaurants():
     restaurants = Restaurant.query.all()
 
-    return jsonify([{'id': r.id, 'name': r.name, 'address': r.address, 'cuisine': r.cuisine, 'status': r.status,
-                     'owner_id': r.owner_id} for r in restaurants])
+    return jsonify(
+        [
+            {
+                "id": r.id,
+                "name": r.name,
+                "address": r.address,
+                "cuisine": r.cuisine,
+                "status": r.status,
+                "owner_id": r.owner_id,
+                "menu": serialize_restaurant_menu(r.menu),
+            }
+            for r in restaurants
+        ]
+    )
 
 
-@restaurant_bp.route('/restaurant/<int:restaurant_id>', methods=['GET', 'PUT', 'DELETE'])
+@restaurant_bp.route(
+    "/restaurant/<int:restaurant_id>", methods=["GET", "PUT", "DELETE"]
+)
 @jwt_required()
 def handle_restaurant(restaurant_id):
     claims = get_jwt()
     restaurant = Restaurant.query.get(restaurant_id)
 
-    if request.method in ['PUT', 'DELETE']:
-        if claims['role'] != 'ADMIN' and restaurant.owner_id != claims['user_id']:
-            return jsonify({'message': 'Only the owner or an admin can perform this action'}), 403
+    if request.method in ["PUT", "DELETE"]:
+        if claims["role"] != "ADMIN" and restaurant.owner_id != claims["user_id"]:
+            return (
+                jsonify(
+                    {"message": "Only the owner or an admin can perform this action"}
+                ),
+                403,
+            )
 
     if not restaurant:
-        return jsonify({'message': 'Restaurant not found'}), 404
+        return jsonify({"message": "Restaurant not found"}), 404
 
-    if request.method == 'GET':
+    if request.method == "GET":
         return get_restaurant_status(restaurant)
-    elif request.method == 'PUT':
+    elif request.method == "PUT":
         return update_restaurant(restaurant)
-    elif request.method == 'DELETE':
+    elif request.method == "DELETE":
         return delete_restaurant(restaurant)
 
 
 def get_restaurant_status(restaurant):
-    return jsonify(
-        {'id': restaurant.id, 'name': restaurant.name, 'address': restaurant.address, 'cuisine': restaurant.cuisine,
-         'status': restaurant.status, 'owner_id': restaurant.owner_id}), 200
+    return (
+        jsonify(
+            {
+                "id": restaurant.id,
+                "name": restaurant.name,
+                "address": restaurant.address,
+                "cuisine": restaurant.cuisine,
+                "status": restaurant.status,
+                "owner_id": restaurant.owner_id,
+                "menu": serialize_restaurant_menu(restaurant.menu),
+            }
+        ),
+        200,
+    )
 
 
 def update_restaurant(restaurant):
-    name = request.form.get('name', None)
-    address = request.form.get('address', None)
-    cuisine = request.form.get('cuisine', None)
+    name = request.form.get("name", None)
+    address = request.form.get("address", None)
+    cuisine = request.form.get("cuisine", None)
 
     if name:
         restaurant.name = name
@@ -156,16 +217,93 @@ def update_restaurant(restaurant):
         restaurant.cuisine = cuisine
 
     db.session.commit()
-    return jsonify([{'message': 'Restaurant details updated successfully'},
-                    {'id': restaurant.id, 'name': restaurant.name, 'address': restaurant.address,
-                     'cuisine': restaurant.cuisine,
-                     'status': restaurant.status, 'owner_id': restaurant.owner_id}]), 200
+    return (
+        jsonify(
+            [
+                {"message": "Restaurant details updated successfully"},
+                {
+                    "id": restaurant.id,
+                    "name": restaurant.name,
+                    "address": restaurant.address,
+                    "cuisine": restaurant.cuisine,
+                    "status": restaurant.status,
+                    "owner_id": restaurant.owner_id,
+                },
+            ]
+        ),
+        200,
+    )
+
+
+@restaurant_bp.route("/restaurant/add_item/<int:restaurant_id>", methods=["POST"])
+@jwt_required()
+@restauration_or_admin_required
+def add_restaurant_item(restaurant_id):
+    restaurant = Restaurant.query.get(restaurant_id)
+    item_name = request.form.get("name", None)
+    item_price = request.form.get("price", None)
+
+    if item_name is None or item_price is None:
+        return (
+            jsonify({"message": "Invalid request"}),
+            400,
+        )
+
+    new_menu_item = MenuItem(
+        menu_id=restaurant.menu.id, name=item_name, price=item_price
+    )
+
+    restaurant.menu.items.append(new_menu_item)
+
+    db.session.add(new_menu_item)
+    db.session.commit()
+
+    return (
+        jsonify({"message": "Added item to the menu"}),
+        201,
+    )
+
+
+@restaurant_bp.route("/menu_item/<int:menu_item_id>", methods=["DELETE", "PUT"])
+@jwt_required()
+@restauration_or_admin_required
+def handle_menu_item(menu_item_id):
+    menu_item = MenuItem.query.get(menu_item_id)
+
+    if request.method == "DELETE":
+        db.session.delete(menu_item)
+        db.session.commit()
+        return jsonify({"message": "Menu item deleted successfully"}), 200
+    else:
+        new_name = request.form.get("name", None)
+        new_price = request.form.get("price", None)
+
+        if new_name:
+            menu_item.name = new_name
+        if new_price:
+            menu_item.price = new_price
+
+        db.session.commit()
+
+        return (
+            jsonify(
+                [
+                    {"message": "Menu item details updated successfully"},
+                    {
+                        "id": menu_item.id,
+                        "name": menu_item.name,
+                        "price": menu_item.price,
+                    },
+                ]
+            ),
+            200,
+        )
 
 
 def delete_restaurant(restaurant):
     db.session.delete(restaurant)
     db.session.commit()
-    return jsonify({'message': 'Restaurant deleted successfully'}), 200
+    return jsonify({"message": "Restaurant deleted successfully"}), 200
 
 
 # @restaurant_bp.route('/menu/<int:menu_id>', methods=['GET', 'POST', 'PUT', 'DELETE'])

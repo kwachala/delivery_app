@@ -25,7 +25,7 @@ curl -i -X POST \
 curl -i -X POST \
 --url http://kong:8001/services/ \
 --data 'name=order_api' \
---data 'url=http://app:5001/order_api'
+--data 'url=http://order-app:5003/order_api'
 
 curl -i -X POST \
   --url http://kong:8001/services/order_api/routes \
@@ -72,6 +72,15 @@ curl -i -X POST \
 
 curl -i -X POST \
   --url http://kong:8001/services/deliveries_api_api/plugins \
+  --data "name=jwt" \
+  --data "config.claims_to_verify=exp" \
+  --data "config.secret_is_base64=false" \
+  --data "config.key_claim_name=iss" \
+  --data "config.uri_param_names=jwt" \
+  --data "config.anonymous=false"
+
+curl -i -X POST \
+  --url http://kong:8001/services/order_api_api/plugins \
   --data "name=jwt" \
   --data "config.claims_to_verify=exp" \
   --data "config.secret_is_base64=false" \

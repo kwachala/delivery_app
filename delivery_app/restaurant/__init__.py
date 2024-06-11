@@ -9,26 +9,21 @@ from celery import Celery
 def make_celery(app):
     celery = Celery(
         app.import_name,
-        backend=app.config['CELERY_RESULT_BACKEND'],
-        broker=app.config['CELERY_BROKER_URL']
+        backend=app.config["CELERY_RESULT_BACKEND"],
+        broker=app.config["CELERY_BROKER_URL"],
     )
     celery.conf.update(app.config)
     return celery
 
 
 restaurant_app = Flask(__name__)
-<<<<<<< HEAD
 restaurant_app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
-restaurant_app.config["JWT_SECRET_KEY"] = "super-secret"
-=======
-restaurant_app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
-restaurant_app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET")
->>>>>>> user_service
+restaurant_app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET")
 
 # restaurant_app.config['JWT_ALGORITHM'] = 'HS256'
 restaurant_app.config.update(
-    CELERY_BROKER_URL='pyamqp://guest:guest@rabbitmq:5672//',
-    CELERY_RESULT_BACKEND='rpc://'
+    CELERY_BROKER_URL="pyamqp://guest:guest@rabbitmq:5672//",
+    CELERY_RESULT_BACKEND="rpc://",
 )
 
 celery = make_celery(restaurant_app)

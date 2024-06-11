@@ -3,11 +3,30 @@ import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
+from celery import Celery
+
+
+def make_celery(app):
+    celery = Celery(
+        app.import_name,
+        backend=app.config["CELERY_RESULT_BACKEND"],
+        broker=app.config["CELERY_BROKER_URL"],
+    )
+    celery.conf.update(app.config)
+    return celery
+
 
 order_app = Flask(__name__)
 order_app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
-order_app.config["JWT_SECRET_KEY"] = "super-secret"
+order_app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET")
 
+# restaurant_app.config['JWT_ALGORITHM'] = 'HS256'
+order_app.config.update(
+    CELERY_BROKER_URL="pyamqp://guest:guest@rabbitmq:5672//",
+    CELERY_RESULT_BACKEND="rpc://",
+)
+
+celery = make_celery(order_app)
 db = SQLAlchemy(order_app)
 jwt = JWTManager(order_app)
 

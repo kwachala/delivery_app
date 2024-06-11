@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import event
 from . import db
 
 
@@ -7,7 +8,7 @@ class Order(db.Model):
     restaurant_id = db.Column(db.Integer, nullable=False)
     username = db.Column(db.String(100), nullable=False)
     items = db.relationship("OrderItem", backref="order", lazy=True)
-    total_price = db.Column(db.Float, nullable=False)
+    total_price = db.Column(db.Float, nullable=False, default=0.0)
 
 
 class OrderItem(db.Model):
