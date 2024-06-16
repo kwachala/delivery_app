@@ -22,6 +22,7 @@ orders_queue = Queue("orders_queue", exchange=orders_exchange, routing_key="orde
 
 
 @restaurant_bp.route("/restaurant/register", methods=["POST"])
+@jwt_required()
 def register_restaurant():
     claims = get_jwt()
 

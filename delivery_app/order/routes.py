@@ -14,7 +14,6 @@ import json
 
 order_bp = Blueprint("order", __name__)
 
-
 @order_bp.route("/orders", methods=["GET", "POST"])
 @jwt_required()
 def handle_orders():
@@ -163,7 +162,8 @@ def send_order_for_accept(order_id):
     response_data = create_payu_order(payu_order_data)
 
     if 'redirectUri' not in response_data:
-        return jsonify({"message": "Failed to create PayU order"}), 500
+        return jsonify({"response": response_data}), 500
+        # return jsonify({"message": "Failed to create PayU order"}), 500
 
     # Zwracanie URL do przekierowania użytkownika na stronę płatności PayU
     return jsonify({"redirectUri": response_data["redirectUri"]}), 202
@@ -176,7 +176,7 @@ def send_order_for_accept(order_id):
 # Przygotowanie danych w taki sposób, aby mogły zostać wysłane do payu sandbox
 def prepare_payu_order_data(order):
     return {
-        "notifyUrl": "http://localhost:5003/notify",
+        "notifyUrl": "http://order-app:5003/order_api/notify",
         "customerIp": "127.0.0.1",
         "merchantPosId": current_app.config['PAYU_POS_ID'],
         "description": f"Order {order.id}",
@@ -189,7 +189,7 @@ def prepare_payu_order_data(order):
             {
                 "name": item.name,
                 "unitPrice": int(item.price * 100),  # w groszach
-                "quantity": 1
+                "quantity": item.quantity
             } for item in order.items
         ]
     }
@@ -199,19 +199,16 @@ def prepare_payu_order_data(order):
 def create_payu_order(payu_order_data):
     token = get_payu_access_token()
     headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}"
     }
     url = "https://secure.snd.payu.com/api/v2_1/orders"
-    response = requests.post(url, headers=headers, json=payu_order_data)
-    response.raise_for_status()
 
-    try:
-        response_data = response.json()
-    except requests.exceptions.JSONDecodeError:
-        return {"error": "Invalid JSON response"}
+    print(f"Request to PayU: URL: {url}, Headers: {headers}, Data: {payu_order_data}")
 
-    return response_data
+    response = requests.post(url, headers=headers, json=payu_order_data, allow_redirects=False)
+
+    return response.json()
 
 
 # pobranie access tokena dla payu
@@ -236,6 +233,9 @@ def notify():
     if order_status == 'COMPLETED':
         order = Order.query.get(order_id)
 
+        order.status = "paid"
+        db.session.commit()
+
         order_data = {
             "id": order.id,
             "restaurant_id": order.restaurant_id,
@@ -244,9 +244,6 @@ def notify():
             "status": order.status,
             "items": [serialize_order_item(item) for item in order.items],
         }
-
-        order.status = "paid"
-        db.session.commit()
 
         # Przekazanie zamówienia do kolejki RabbitMQ
         send_order_to_queue.delay(json.dumps(order_data))
