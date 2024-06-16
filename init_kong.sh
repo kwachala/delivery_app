@@ -24,15 +24,6 @@ curl -i -X POST \
 
 curl -i -X POST \
 --url http://kong:8001/services/ \
---data 'name=order_api' \
---data 'url=http://order-app:5003/order_api'
-
-curl -i -X POST \
-  --url http://kong:8001/services/order_api/routes \
-  --data 'paths[]=/order_api' \
-
-curl -i -X POST \
---url http://kong:8001/services/ \
 --data 'name=user_api' \
 --data 'url=http://user-app:5001/user_api'
 
@@ -48,6 +39,15 @@ curl -i -X POST \
 curl -i -X POST \
   --url http://kong:8001/services/deliveries_api/routes \
   --data 'paths[]=/deliveries_api' \
+
+  curl -i -X POST \
+--url http://kong:8001/services/ \
+--data 'name=order_api' \
+--data 'url=http://order-app:5003/order_api'
+
+curl -i -X POST \
+  --url http://kong:8001/services/order_api/routes \
+  --data 'paths[]=/order_api' \
 
 curl -i -X POST http://kong:8001/consumers \
   --data "username=consumer-user"
@@ -71,7 +71,7 @@ curl -i -X POST \
   --data "config.anonymous=false"
 
 curl -i -X POST \
-  --url http://kong:8001/services/deliveries_api_api/plugins \
+  --url http://kong:8001/services/deliveries_api/plugins \
   --data "name=jwt" \
   --data "config.claims_to_verify=exp" \
   --data "config.secret_is_base64=false" \
@@ -80,7 +80,7 @@ curl -i -X POST \
   --data "config.anonymous=false"
 
 curl -i -X POST \
-  --url http://kong:8001/services/order_api_api/plugins \
+  --url http://kong:8001/services/order_api/plugins \
   --data "name=jwt" \
   --data "config.claims_to_verify=exp" \
   --data "config.secret_is_base64=false" \

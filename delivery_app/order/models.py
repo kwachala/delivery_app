@@ -7,8 +7,11 @@ class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     restaurant_id = db.Column(db.Integer, nullable=False)
     username = db.Column(db.String(100), nullable=False)
-    items = db.relationship("OrderItem", backref="order", lazy=True)
     total_price = db.Column(db.Float, nullable=False, default=0.0)
+    status = db.Column(
+        db.String(20), nullable=False, default="placed"
+    )  # placed, paid, accepted, rejected
+    items = db.relationship("OrderItem", backref="order", lazy=True)
 
 
 class OrderItem(db.Model):
@@ -17,3 +20,4 @@ class OrderItem(db.Model):
     order_id = db.Column(db.Integer, db.ForeignKey("order.id"), nullable=False)
     name = db.Column(db.String(80), nullable=False)
     price = db.Column(db.Float, nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)

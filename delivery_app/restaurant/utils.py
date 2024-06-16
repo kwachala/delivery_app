@@ -1,6 +1,7 @@
 from functools import wraps
-from flask import jsonify
+from flask import jsonify, request
 from flask_jwt_extended import get_jwt
+import jwt
 
 
 def admin_required(fn):
@@ -32,3 +33,16 @@ def serialize_restaurant_menu(menu):
             for item in menu.items
         ]
     }
+
+
+def get_jwt_claims_unverified():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return None
+
+    token = auth_header.split(" ")[1]
+    try:
+        claims = jwt.decode(token, options={"verify_signature": False})
+        return claims
+    except jwt.InvalidTokenError:
+        return None

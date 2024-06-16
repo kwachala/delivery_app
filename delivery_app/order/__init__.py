@@ -19,6 +19,9 @@ def make_celery(app):
 order_app = Flask(__name__)
 order_app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
 order_app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET")
+order_app.config["PAYU_POS_ID"] = os.getenv("PAYU_POS_ID")
+order_app.config["PAYU_CLIENT_ID"] = os.getenv("PAYU_CLIENT_ID")
+order_app.config["PAYU_CLIENT_SECRET"] = os.getenv("PAYU_CLIENT_SECRET")
 
 # restaurant_app.config['JWT_ALGORITHM'] = 'HS256'
 order_app.config.update(

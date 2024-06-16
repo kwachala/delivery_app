@@ -30,4 +30,5 @@ def serialize_order_item(item):
         "id": item.id,
         "name": item.name,
         "price": item.price,
+        "quantity": item.quantity
     }

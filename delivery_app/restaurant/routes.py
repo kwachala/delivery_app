@@ -22,7 +22,6 @@ orders_queue = Queue("orders_queue", exchange=orders_exchange, routing_key="orde
 
 
 @restaurant_bp.route("/restaurant/register", methods=["POST"])
-@jwt_required()
 def register_restaurant():
     claims = get_jwt()
 
@@ -159,9 +158,7 @@ def handle_restaurants():
     )
 
 
-@restaurant_bp.route(
-    "/restaurant/<int:restaurant_id>", methods=["GET", "PUT", "DELETE"]
-)
+@restaurant_bp.route("/restaurant/<int:restaurant_id>", methods=["GET", "PUT", "DELETE"])
 @jwt_required()
 def handle_restaurant(restaurant_id):
     claims = get_jwt()
@@ -235,9 +232,14 @@ def update_restaurant(restaurant):
     )
 
 
+def delete_restaurant(restaurant):
+    db.session.delete(restaurant)
+    db.session.commit()
+    return jsonify({"message": "Restaurant deleted successfully"}), 200
+
+
 @restaurant_bp.route("/restaurant/add_item/<int:restaurant_id>", methods=["POST"])
 @jwt_required()
-@restauration_or_admin_required
 def add_restaurant_item(restaurant_id):
     restaurant = Restaurant.query.get(restaurant_id)
     item_name = request.form.get("name", None)
@@ -266,7 +268,6 @@ def add_restaurant_item(restaurant_id):
 
 @restaurant_bp.route("/menu_item/<int:menu_item_id>", methods=["DELETE", "PUT"])
 @jwt_required()
-@restauration_or_admin_required
 def handle_menu_item(menu_item_id):
     menu_item = MenuItem.query.get(menu_item_id)
 
@@ -300,10 +301,22 @@ def handle_menu_item(menu_item_id):
         )
 
 
-def delete_restaurant(restaurant):
-    db.session.delete(restaurant)
-    db.session.commit()
-    return jsonify({"message": "Restaurant deleted successfully"}), 200
+# Pobieranie szczegółów pozycji z menu przy składaniu zamówienia
+@restaurant_bp.route("/menu_items", methods=["GET"])
+def get_menu_items():
+    item_ids = request.json.get("item_ids")
+    if not item_ids:
+        return jsonify({"message": "Item IDs are required"}), 400
+
+    menu_items = MenuItem.query.filter(MenuItem.id.in_(item_ids)).all()
+    if not menu_items:
+        return jsonify({"message": "No menu items found for the provided IDs"}), 404
+
+    result = [
+        {"id": item.id, "name": item.name, "price": item.price}
+        for item in menu_items
+    ]
+    return jsonify(result), 200
 
 
 # @restaurant_bp.route('/menu/<int:menu_id>', methods=['GET', 'POST', 'PUT', 'DELETE'])
