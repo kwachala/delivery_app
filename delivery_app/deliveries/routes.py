@@ -13,6 +13,9 @@ deliveries_bp = Blueprint('deliveries', __name__)
 
 @deliveries_bp.route('/deliveries', methods=['GET'])
 def check_current_deliveries():
+    claims = get_jwt()
+    if not claims or claims['role'] != "DELIVERER" or claims['role'] != 'ADMIN':
+        return jsonify({"message": "Only deliverer can accept deliveries"}), 403
     deliveries = Delivery.query.all()
 
     return jsonify([{'id': d.id, 'restaurant_id': d.restaurant_id, 'username': d.username, 'items': d.items,
@@ -20,7 +23,12 @@ def check_current_deliveries():
 
 
 @deliveries_bp.route('/deliveries/available', methods=['GET'])
+@jwt_required()
 def get_available_deliveries():
+    claims = get_jwt()
+    if not claims or claims['role'] != "DELIVERER":
+        return jsonify({"message": "Only deliverer can see available deliveries"}), 403
+
     deliveries = Delivery.query.filter_by(status='available').all()
     return jsonify([delivery.to_dict() for delivery in deliveries])
 
@@ -29,7 +37,7 @@ def get_available_deliveries():
 @jwt_required()
 def accept_delivery(delivery_id):
     claims = get_jwt()
-    if not claims or claims['user_id'] != "DELIVERER":
+    if not claims or claims['role'] != "DELIVERER":
         return jsonify({"message": "Only deliverer can accept deliveries"}), 403
 
     delivery = Delivery.query.get(delivery_id)
@@ -42,7 +50,12 @@ def accept_delivery(delivery_id):
 
 
 @deliveries_bp.route('/deliveries/<int:delivery_id>', methods=['GET'])
+@jwt_required()
 def get_delivery_details(delivery_id):
+    claims = get_jwt()
+    if not claims or claims['role'] != "DELIVERER":
+        return jsonify({"message": "Only deliverer can see details of delivery"}), 403
+
     delivery = Delivery.query.get(delivery_id)
     if delivery:
         return jsonify(delivery.to_dict())
@@ -50,7 +63,12 @@ def get_delivery_details(delivery_id):
 
 
 @deliveries_bp.route('/deliveries/<int:delivery_id>/complete', methods=['POST'])
+@jwt_required()
 def complete_delivery(delivery_id):
+    claims = get_jwt()
+    if not claims or claims['role'] != "DELIVERER":
+        return jsonify({"message": "Only deliverer can complete deliveries"}), 403
+
     delivery = Delivery.query.get(delivery_id)
     if delivery and delivery.status == 'in_progress':
         delivery.status = 'completed'
